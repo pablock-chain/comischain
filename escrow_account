@@ -1,0 +1,50 @@
+pragma solidity ^0.8.0;
+
+contract Escrow {
+    address public buyer;
+    address public seller;
+    address public arbiter;
+    uint public amount;
+    bool public released;
+    bool public disputed;
+
+    constructor(address _buyer, address _seller, address _arbiter) {
+        buyer = _buyer;
+        seller = _seller;
+        arbiter = _arbiter;
+        amount = msg.value;
+    }
+
+    function release() public {
+        require(msg.sender == buyer || msg.sender == seller || msg.sender == arbiter);
+        require(disputed == false);
+
+        released = true;
+
+        (bool success,) = seller.call{value: amount}("");
+        require(success, "Transfer failed.");
+    }
+
+    function dispute() public {
+        require(msg.sender == buyer || msg.sender == seller || msg.sender == arbiter);
+        require(disputed == false);
+        require(released == false);
+
+        disputed = true;
+    }
+
+    function resolve(bool _releaseFunds) public {
+        require(msg.sender == arbiter);
+        require(disputed == true);
+
+        if (_releaseFunds) {
+            (bool success,) = seller.call{value: amount}("");
+            require(success, "Transfer failed.");
+        } else {
+            (bool success,) = buyer.call{value: amount}("");
+            require(success, "Transfer failed.");
+        }
+
+        released = true;
+    }
+}
